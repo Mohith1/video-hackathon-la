@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a1120;
+  --bg-secondary: #0f1929;
+  --bg-card: #1e2a3a;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --teal: #14b8a6;
+  --teal-dark: #0d9488;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+.btn-ghost {
+  @apply px-2 py-1 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors text-xs border border-slate-600;
+}
+
+.btn-primary {
+  @apply px-4 py-2 rounded bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm;
+}
+
+.btn-danger {
+  @apply px-3 py-1 rounded bg-red-900/50 hover:bg-red-800/70 text-red-300 text-xs border border-red-800 transition-colors;
+}
+
+.btn-success {
+  @apply px-3 py-1 rounded bg-emerald-900/50 hover:bg-emerald-800/70 text-emerald-300 text-xs border border-emerald-800 transition-colors;
+}
+
+.card {
+  @apply bg-slate-800 rounded-lg border border-slate-700 p-4;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f1929; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }

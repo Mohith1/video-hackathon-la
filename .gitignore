@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.so
+.venv/
+venv/
+env/
+
+# Environment files (contain secrets — set in Railway/Vercel dashboards)
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Local dev artifacts (not needed in production)
+backend/local_uploads/
+backend/local_db/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+.pytest_cache/
+.coverage
