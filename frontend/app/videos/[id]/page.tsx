@@ -133,9 +133,17 @@ export default function VideoPage({ params }: PageProps) {
 
           {video?.video_url ? (
             <VideoPlayer url={video.video_url} playerRef={playerRef} />
+          ) : isComplete ? (
+            <div className="aspect-video bg-slate-900 rounded-lg border border-slate-800 flex flex-col items-center justify-center gap-3">
+              <div className="text-slate-500 text-sm">Video preview unavailable</div>
+              <div className="text-slate-600 text-xs text-center max-w-xs leading-relaxed">
+                S3-imported videos require signed credentials for playback.
+                All segmentation results, break cards, and exports are fully functional.
+              </div>
+            </div>
           ) : (
             <div className="aspect-video bg-slate-800 rounded-lg flex items-center justify-center">
-              <div className="text-slate-600 text-sm">Video loading...</div>
+              <div className="text-slate-600 text-sm">Processing...</div>
             </div>
           )}
 
