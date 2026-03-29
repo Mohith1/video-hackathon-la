@@ -69,34 +69,50 @@ def create_video_record(video_id: str, mode: str, s3_uri: str, filename: str):
     if _use_local():
         _local_write(video_id, record)
         return
-    db = _get_dynamodb()
-    db.Table(settings.dynamodb_table).put_item(Item=record)
+    try:
+        db = _get_dynamodb()
+        db.Table(settings.dynamodb_table).put_item(Item=record)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"DynamoDB unavailable ({e}), using local storage")
+        _local_write(video_id, record)
 
 
 def update_video_status(video_id: str, **kwargs):
     if _use_local():
         _local_update(video_id, **kwargs)
         return
-
-    db = _get_dynamodb()
-    table = db.Table(settings.dynamodb_table)
-    update_expr = "SET " + ", ".join(f"#{k} = :{k}" for k in kwargs)
-    expr_names  = {f"#{k}": k for k in kwargs}
-    expr_values = {f":{k}": v for k, v in kwargs.items()}
-    table.update_item(
-        Key={"video_id": video_id},
-        UpdateExpression=update_expr,
-        ExpressionAttributeNames=expr_names,
-        ExpressionAttributeValues=expr_values,
-    )
+    try:
+        db = _get_dynamodb()
+        table = db.Table(settings.dynamodb_table)
+        update_expr = "SET " + ", ".join(f"#{k} = :{k}" for k in kwargs)
+        expr_names  = {f"#{k}": k for k in kwargs}
+        expr_values = {f":{k}": v for k, v in kwargs.items()}
+        table.update_item(
+            Key={"video_id": video_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"DynamoDB update failed ({e}), using local storage")
+        _local_update(video_id, **kwargs)
 
 
 def get_video_record(video_id: str) -> Optional[dict]:
     if _use_local():
         return _local_read(video_id)
-    db = _get_dynamodb()
-    resp = db.Table(settings.dynamodb_table).get_item(Key={"video_id": video_id})
-    return resp.get("Item")
+    try:
+        db = _get_dynamodb()
+        resp = db.Table(settings.dynamodb_table).get_item(Key={"video_id": video_id})
+        result = resp.get("Item")
+        if result:
+            return result
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"DynamoDB get failed ({e}), using local storage")
+    return _local_read(video_id)
 
 
 def ensure_table_exists():
