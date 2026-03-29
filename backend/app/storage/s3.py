@@ -181,8 +181,8 @@ def get_public_url(s3_key: str, bucket: str = None) -> str:
 def get_video_stream_url(s3_uri: str) -> str:
     """
     Return a URL that the browser can stream.
-    For local mode: strip the local:// prefix and return an HTTP URL.
-    For S3: generate a presigned URL.
+    For local mode: served via FastAPI /local-files/ static mount.
+    For S3: tries presigned URL → access point alias → direct S3 URL.
     """
     if s3_uri.startswith("local://"):
         s3_key = s3_uri.replace("local://", "")
@@ -194,22 +194,33 @@ def get_video_stream_url(s3_uri: str) -> str:
     bucket = parts[0]
     s3_key = parts[1] if len(parts) > 1 else ""
 
-    try:
-        # Use boto3 with whatever credentials are available
-        s3 = boto3.client(
-            "s3",
-            region_name=settings.aws_region,
-            aws_access_key_id=settings.aws_access_key_id or None,
-            aws_secret_access_key=settings.aws_secret_access_key or None,
-            aws_session_token=settings.aws_session_token or None,
+    # 1. Presigned URL (requires AWS credentials)
+    if settings.aws_access_key_id and settings.aws_secret_access_key:
+        try:
+            s3 = boto3.client(
+                "s3",
+                region_name=settings.aws_region,
+                aws_access_key_id=settings.aws_access_key_id,
+                aws_secret_access_key=settings.aws_secret_access_key,
+                aws_session_token=settings.aws_session_token or None,
+            )
+            return s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": s3_key},
+                ExpiresIn=7200,
+            )
+        except Exception:
+            pass
+
+    # 2. Access Point alias URL (works if access point has a public read policy)
+    if settings.s3_access_point_alias:
+        alias = settings.s3_access_point_alias
+        return (
+            f"https://{alias}.s3.{settings.aws_region}.amazonaws.com/{s3_key}"
         )
-        return s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket, "Key": s3_key},
-            ExpiresIn=7200,
-        )
-    except Exception:
-        return f"https://{bucket}.s3.amazonaws.com/{s3_key}"
+
+    # 3. Direct bucket URL (only works if bucket/object is public)
+    return f"https://{bucket}.s3.{settings.aws_region}.amazonaws.com/{s3_key}"
 
 
 # ── Legacy alias ──────────────────────────────────────────────────────────────

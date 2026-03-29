@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Public URL of this backend — used to build video stream URLs for the browser.
     # Set to your Railway URL: https://video-hackathon-la-production.up.railway.app
     backend_public_url: str = "http://localhost:8000"
+    # S3 Access Point alias — enables public video streaming without presigned URLs.
+    # Format: {alias}-s3alias (from S3 → Access Points → your access point → Alias)
+    s3_access_point_alias: str = ""
 
     class Config:
         env_file = ".env"
