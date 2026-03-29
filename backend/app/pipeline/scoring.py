@@ -94,11 +94,30 @@ def boundary_score(t: float, embeddings: list, chapters: list,
     }
 
 
-def collect_candidates(chapters: list, silence_curve: list) -> List[float]:
+def collect_visual_candidates(embeddings: list, threshold: float = 0.25) -> List[float]:
     """
-    Collect candidate timestamps:
-    1. Every Pegasus chapter boundary
-    2. Every timestamp where rms drops below 20th percentile (silence candidates)
+    Find timestamps where Marengo visual embeddings shift significantly.
+    Cosine distance > threshold between consecutive frames = scene boundary candidate.
+    This gives real visual scene-change detection from Marengo even without Pegasus.
+    """
+    candidates = []
+    for i in range(1, len(embeddings)):
+        dist = 1.0 - cosine_similarity(
+            embeddings[i - 1]["embedding"], embeddings[i]["embedding"]
+        )
+        if dist > threshold and embeddings[i]["timestamp"] > 0:
+            candidates.append(embeddings[i]["timestamp"])
+    return candidates
+
+
+def collect_candidates(chapters: list, silence_curve: list,
+                       embeddings: list = None) -> List[float]:
+    """
+    Collect candidate timestamps from three real signals:
+    1. Pegasus chapter boundaries (semantic understanding)
+    2. Silence peaks from audio (pause detection)
+    3. Marengo visual embedding shifts (scene-change detection)
+    Sources 2 and 3 are always real signal — they drive detection even without S3/Pegasus.
     """
     candidates = set()
 
@@ -112,6 +131,15 @@ def collect_candidates(chapters: list, silence_curve: list) -> List[float]:
         if s > 0.5:
             candidates.add(float(i))
 
+    # Marengo visual boundary candidates (real signal from embedding distance)
+    if embeddings:
+        for t in collect_visual_candidates(embeddings):
+            candidates.add(t)
+
+    logger.info(f"[Phase2] Collected {len(candidates)} candidates "
+                f"(chapters={sum(1 for ch in chapters if ch['start']>0)}, "
+                f"silence={sum(1 for s in silence_curve if s>0.5)}, "
+                f"visual={len(collect_visual_candidates(embeddings)) if embeddings else 0})")
     return sorted(list(candidates))
 
 

@@ -33,11 +33,14 @@ router = APIRouter()
 def _run_pipeline(video_id: str, s3_uri: str, mode: str):
     """Run the full 3-phase pipeline synchronously (called in background thread)."""
     import asyncio
+    import time
     from app.pipeline.ingestion import run_ingestion
     from app.pipeline.scoring import collect_candidates, score_all_candidates
     from app.pipeline.selection import run_phase3
 
     try:
+        pipeline_start = time.time()
+
         # Phase 1
         update_video_status(video_id, status="phase1", progress=10)
         ingestion_data = asyncio.run(run_ingestion(s3_uri, mode, video_id))
@@ -46,7 +49,11 @@ def _run_pipeline(video_id: str, s3_uri: str, mode: str):
 
         # Phase 2
         update_video_status(video_id, status="phase2", progress=70)
-        candidates = collect_candidates(ingestion_data["chapters"], ingestion_data["silence_curve"])
+        candidates = collect_candidates(
+            ingestion_data["chapters"],
+            ingestion_data["silence_curve"],
+            ingestion_data["embeddings"],  # Marengo visual candidates always included
+        )
         scored = score_all_candidates(
             candidates, ingestion_data["embeddings"],
             ingestion_data["chapters"], ingestion_data["silence_curve"], mode
@@ -57,6 +64,11 @@ def _run_pipeline(video_id: str, s3_uri: str, mode: str):
         update_video_status(video_id, status="phase3", progress=85)
         phase3 = run_phase3(scored, ingestion_data, mode)
 
+        processing_time = round(time.time() - pipeline_start, 1)
+        video_duration = phase3["duration"]
+        # Real-time ratio: how many seconds of video processed per second of wall time
+        rt_ratio = round(video_duration / processing_time, 1) if processing_time > 0 else 0
+
         # Save results
         update_video_status(
             video_id,
@@ -65,6 +77,8 @@ def _run_pipeline(video_id: str, s3_uri: str, mode: str):
             results=phase3["results"],
             signals=phase3["signals"],
             duration=phase3["duration"],
+            processing_time_sec=processing_time,
+            realtime_ratio=rt_ratio,
         )
 
         # Cache ingestion data for re-optimization
@@ -180,7 +194,11 @@ async def re_optimize(video_id: str, req: OptimizeRequest, background_tasks: Bac
     from app.pipeline.selection import run_phase3
 
     mode = req.mode.value
-    candidates = collect_candidates(ingestion_data["chapters"], ingestion_data["silence_curve"])
+    candidates = collect_candidates(
+        ingestion_data["chapters"],
+        ingestion_data["silence_curve"],
+        ingestion_data.get("embeddings"),
+    )
     scored = score_all_candidates(
         candidates, ingestion_data["embeddings"],
         ingestion_data["chapters"], ingestion_data["silence_curve"], mode

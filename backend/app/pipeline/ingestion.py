@@ -200,10 +200,12 @@ def _generate_mock_embeddings(duration_sec: float = 3600.0) -> list:
 
 # ── Job B: Pegasus chapter segmentation ──────────────────────────────────────
 
-async def get_pegasus_chapters(s3_uri: str, mode: str) -> dict:
+async def get_pegasus_chapters(s3_uri: str, mode: str,
+                               duration_hint: float = None) -> dict:
     """
     Job B: Get Pegasus chapter segmentation + ASR via AWS Bedrock.
     API: {"inputPrompt": "...", "mediaSource": {"s3Location": {"uri": ..., "bucketOwner": ...}}}
+    duration_hint: used to scale mock chapters when Pegasus cannot run (no S3 URI).
     """
     logger.info(f"[Phase1-B] Pegasus chapters: {s3_uri} mode={mode}")
     loop = asyncio.get_event_loop()
@@ -213,8 +215,19 @@ async def get_pegasus_chapters(s3_uri: str, mode: str) -> dict:
 
         # Bedrock requires real S3 URI (can't use local://)
         if s3_uri.startswith("local://"):
-            logger.warning("[Phase1-B] Video is local — Pegasus requires S3. Using mock chapters.")
-            return _generate_mock_chapters(mode)
+            # Get real duration from the local file for accurate mock scaling
+            local_key = s3_uri.replace("local://", "")
+            local_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "local_uploads", local_key
+            )
+            dur = duration_hint
+            if dur is None and os.path.exists(local_path):
+                dur = _get_duration(local_path)
+            logger.warning(
+                f"[Phase1-B] Video is local — Pegasus requires S3. "
+                f"Using scaled mock chapters (duration={dur:.0f}s)."
+            )
+            return _generate_mock_chapters(mode, duration=dur or 3600.0)
 
         try:
             result = invoke_bedrock_model(PEGASUS_MODEL, {
@@ -229,7 +242,7 @@ async def get_pegasus_chapters(s3_uri: str, mode: str) -> dict:
             return _parse_pegasus_response(raw, mode)
         except Exception as e:
             logger.warning(f"[Phase1-B] Pegasus error: {e}. Using mock chapters.")
-            return _generate_mock_chapters(mode)
+            return _generate_mock_chapters(mode, duration=duration_hint or 3600.0)
 
     return await loop.run_in_executor(None, _call)
 
@@ -295,36 +308,64 @@ def _parse_pegasus_response(raw: str, mode: str) -> dict:
     return _generate_mock_chapters(mode)
 
 
-def _generate_mock_chapters(mode: str) -> dict:
+def _generate_mock_chapters(mode: str, duration: float = 3600.0) -> dict:
+    """
+    Generate proportionally-scaled chapter structure for the given duration.
+    Used when Pegasus can't run (no S3 URI). Scales timestamps to actual video length.
+    """
+    d = duration  # shorthand
+
     if mode == "ad_break":
+        # Sports broadcast template: pre-game + quarters + halftime
+        segments = [
+            (0.0,   0.167, "Pre-game coverage",         {"ad_suitability": 2}),
+            (0.167, 0.323, "First quarter",              {"ad_suitability": 4}),
+            (0.323, 0.467, "Timeout break / Q1 end",    {"ad_suitability": 5}),
+            (0.467, 0.622, "Second quarter",             {"ad_suitability": 3}),
+            (0.622, 0.711, "Halftime show",              {"ad_suitability": 5}),
+            (0.711, 0.867, "Third quarter",              {"ad_suitability": 3}),
+            (0.867, 1.000, "Fourth quarter — close game",{"ad_suitability": 2}),
+        ]
         chapters = [
-            {"start": 0.0,    "end": 751.3,  "label": "Pre-game coverage",          "ad_suitability": 2},
-            {"start": 751.3,  "end": 1455.0, "label": "First quarter",               "ad_suitability": 4},
-            {"start": 1455.0, "end": 2100.0, "label": "Timeout break Q1",            "ad_suitability": 5},
-            {"start": 2100.0, "end": 2800.0, "label": "Second quarter",              "ad_suitability": 3},
-            {"start": 2800.0, "end": 3200.0, "label": "Halftime show",               "ad_suitability": 5},
-            {"start": 3200.0, "end": 3900.0, "label": "Third quarter",               "ad_suitability": 3},
-            {"start": 3900.0, "end": 4500.0, "label": "Fourth quarter - close game", "ad_suitability": 2},
+            {"start": round(s * d, 1), "end": round(e * d, 1),
+             "label": label, **meta}
+            for s, e, label, meta in segments
         ]
     elif mode == "news":
-        chapters = [
-            {"start": 0.0,    "end": 300.0,  "label": "Opening headlines",       "topic": "introduction"},
-            {"start": 300.0,  "end": 900.0,  "label": "Breaking: Economic report","topic": "economy"},
-            {"start": 900.0,  "end": 1500.0, "label": "Weather update",           "topic": "weather"},
-            {"start": 1500.0, "end": 2100.0, "label": "Sports highlights",        "topic": "sports"},
-            {"start": 2100.0, "end": 2700.0, "label": "International news",       "topic": "international"},
-            {"start": 2700.0, "end": 3300.0, "label": "Local stories",            "topic": "local"},
-            {"start": 3300.0, "end": 3600.0, "label": "Closing remarks",          "topic": "close"},
+        segments = [
+            (0.000, 0.083, "Opening headlines",          {"topic": "introduction"}),
+            (0.083, 0.250, "Breaking: Economic report",  {"topic": "economy"}),
+            (0.250, 0.417, "Weather update",             {"topic": "weather"}),
+            (0.417, 0.583, "Sports highlights",          {"topic": "sports"}),
+            (0.583, 0.750, "International news",         {"topic": "international"}),
+            (0.750, 0.917, "Local stories",              {"topic": "local"}),
+            (0.917, 1.000, "Closing remarks",            {"topic": "close"}),
         ]
-    else:
         chapters = [
-            {"start": 0.0,    "end": 120.0,  "label": "Cold open",           "structural_type": "opening"},
-            {"start": 120.0,  "end": 900.0,  "label": "Act 1 - setup",       "structural_type": "act"},
-            {"start": 900.0,  "end": 1680.0, "label": "Act 2 - confrontation","structural_type": "act"},
-            {"start": 1680.0, "end": 2100.0, "label": "B-story transition",   "structural_type": "transition"},
-            {"start": 2100.0, "end": 2520.0, "label": "Act 3 - resolution",   "structural_type": "act"},
-            {"start": 2520.0, "end": 2640.0, "label": "Tag/Credits",          "structural_type": "credits"},
+            {"start": round(s * d, 1), "end": round(e * d, 1),
+             "label": label, **meta}
+            for s, e, label, meta in segments
         ]
+    else:  # structural
+        # Cold open is a fixed ~90s; credits fixed ~60s; acts fill the rest
+        cold_end = min(90.0, d * 0.05)
+        credits_start = max(d - 60.0, d * 0.93)
+        act_len = (credits_start - cold_end) / 3.5
+        chapters = [
+            {"start": 0.0,                       "end": cold_end,
+             "label": "Cold open",               "structural_type": "opening"},
+            {"start": cold_end,                  "end": round(cold_end + act_len, 1),
+             "label": "Act 1 — setup",           "structural_type": "act"},
+            {"start": round(cold_end + act_len, 1), "end": round(cold_end + act_len * 2, 1),
+             "label": "Act 2 — confrontation",   "structural_type": "act"},
+            {"start": round(cold_end + act_len * 2, 1), "end": round(cold_end + act_len * 2.5, 1),
+             "label": "B-story transition",      "structural_type": "transition"},
+            {"start": round(cold_end + act_len * 2.5, 1), "end": round(credits_start, 1),
+             "label": "Act 3 — resolution",      "structural_type": "act"},
+            {"start": round(credits_start, 1),   "end": round(d, 1),
+             "label": "Tag / Credits",           "structural_type": "credits"},
+        ]
+
     asr = []
     for ch in chapters:
         for t in np.arange(ch["start"], ch["end"], 5.0):

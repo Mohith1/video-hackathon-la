@@ -16,17 +16,6 @@ const MODES = [
   { value: "structural", label: "Structural" },
 ];
 
-const MODE_K_DEFAULTS: Record<string, number> = {
-  ad_break: 6,
-  news: 8,
-  structural: 5,
-};
-
-const MODE_GAP_DEFAULTS: Record<string, number> = {
-  ad_break: 480,
-  news: 60,
-  structural: 300,
-};
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -47,7 +36,7 @@ export default function VideoPage({ params }: PageProps) {
     { refreshInterval: wsStatus.status !== "complete" && wsStatus.status !== "failed" ? 3000 : 0 }
   );
 
-  const { setVideoData, breaks, mode, setMode, k, setK, minGapSec, setMinGapSec, duration } =
+  const { setVideoData, breaks, mode, setMode, k, setK, minGapSec, setMinGapSec } =
     useEditorStore();
 
   // WebSocket progress
@@ -128,6 +117,14 @@ export default function VideoPage({ params }: PageProps) {
             </span>
             {video?.duration && (
               <span className="text-slate-600">· {formatTime(video.duration)}</span>
+            )}
+            {video?.processing_time_sec && (
+              <span className="text-slate-600">
+                · processed in {video.processing_time_sec}s
+                {video.realtime_ratio && (
+                  <span className="text-teal-600"> ({video.realtime_ratio}x real-time)</span>
+                )}
+              </span>
             )}
           </div>
 
