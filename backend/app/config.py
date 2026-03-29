@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     app_env: str = "development"
     cors_origins: str = "*"
+    # Public URL of this backend — used to build video stream URLs for the browser.
+    # Set to your Railway URL: https://video-hackathon-la-production.up.railway.app
+    backend_public_url: str = "http://localhost:8000"
 
     class Config:
         env_file = ".env"

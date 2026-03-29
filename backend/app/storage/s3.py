@@ -31,7 +31,8 @@ def _local_path(s3_key: str) -> str:
 
 def _local_url(s3_key: str) -> str:
     """URL served by FastAPI static mount at /local-files/"""
-    return f"http://localhost:8000/local-files/{s3_key.lstrip('/')}"
+    base = settings.backend_public_url.rstrip("/")
+    return f"{base}/local-files/{s3_key.lstrip('/')}"
 
 
 # ── S3 client (only used when AWS_ACCESS_KEY_ID is set) ──────────────────────
