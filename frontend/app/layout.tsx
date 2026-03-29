@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
-  title: "SegmentIQ — Intelligent Video Segmentation",
+  title: "Narrative AI — Intelligent Video Segmentation",
   description: "AI-powered video segmentation using TwelveLabs Marengo + Pegasus via AWS Bedrock",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-slate-950 text-slate-200">
-        <nav className="border-b border-slate-800 px-6 py-3 flex items-center gap-3">
-          <span className="text-teal-500 font-bold text-lg tracking-tight">SegmentIQ</span>
-          <span className="text-slate-600 text-xs">|</span>
-          <span className="text-slate-500 text-xs">Intelligent Video Segmentation · TwelveLabs + AWS Bedrock</span>
-        </nav>
-        <main>{children}</main>
+    <html lang="en" className="dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen transition-colors duration-200" style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}>
+        <ThemeProvider>
+          <NavBar />
+          <main>{children}</main>
+        </ThemeProvider>
       </body>
     </html>
   );

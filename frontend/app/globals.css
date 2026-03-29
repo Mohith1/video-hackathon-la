@@ -2,44 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light mode (default) ─────────────────────────────────────────────────── */
 :root {
-  --bg-primary: #0a1120;
-  --bg-secondary: #0f1929;
-  --bg-card: #1e2a3a;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --teal: #14b8a6;
-  --teal-dark: #0d9488;
+  --bg:          #f8fafc;
+  --bg-card:     #ffffff;
+  --bg-subtle:   #f1f5f9;
+  --border:      #e2e8f0;
+  --text:        #0f172a;
+  --text-2:      #475569;
+  --text-3:      #94a3b8;
+  --accent:      #14b8a6;
+  --accent-dark: #0d9488;
+  --scrollbar:   #cbd5e1;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+.dark {
+  --bg:          #060d18;
+  --bg-card:     #0f1929;
+  --bg-subtle:   #1e2a3a;
+  --border:      #1e2a3a;
+  --text:        #e2e8f0;
+  --text-2:      #94a3b8;
+  --text-3:      #475569;
+  --accent:      #14b8a6;
+  --accent-dark: #0d9488;
+  --scrollbar:   #334155;
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 0.2s, color 0.2s;
 }
 
+/* ── Semantic utilities ───────────────────────────────────────────────────── */
+.surface        { background-color: var(--bg); }
+.surface-card   { background-color: var(--bg-card); }
+.surface-subtle { background-color: var(--bg-subtle); }
+.border-theme   { border-color: var(--border); }
+.text-primary   { color: var(--text); }
+.text-secondary { color: var(--text-2); }
+.text-muted     { color: var(--text-3); }
+
+/* ── Component tokens ────────────────────────────────────────────────────── */
 .btn-ghost {
-  @apply px-2 py-1 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors text-xs border border-slate-600;
+  @apply px-2 py-1 rounded text-xs border transition-colors;
+  color: var(--text-2);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text);
 }
 
 .btn-primary {
-  @apply px-4 py-2 rounded bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm;
+  @apply px-4 py-2 rounded font-medium transition-colors text-sm text-white;
+  background-color: var(--accent);
 }
+.btn-primary:hover { background-color: var(--accent-dark); }
 
 .btn-danger {
-  @apply px-3 py-1 rounded bg-red-900/50 hover:bg-red-800/70 text-red-300 text-xs border border-red-800 transition-colors;
+  @apply px-3 py-1 rounded text-xs border transition-colors;
+  @apply bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800;
 }
+.btn-danger:hover { @apply bg-red-100 dark:bg-red-800/50; }
 
 .btn-success {
-  @apply px-3 py-1 rounded bg-emerald-900/50 hover:bg-emerald-800/70 text-emerald-300 text-xs border border-emerald-800 transition-colors;
+  @apply px-3 py-1 rounded text-xs border transition-colors;
+  @apply bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800;
 }
+.btn-success:hover { @apply bg-emerald-100 dark:bg-emerald-800/50; }
 
 .card {
-  @apply bg-slate-800 rounded-lg border border-slate-700 p-4;
+  @apply rounded-xl border p-4;
+  background-color: var(--bg-card);
+  border-color: var(--border);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0f1929; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }

@@ -120,34 +120,28 @@ function VideoPageInner({ params }: PageProps) {
   const currentStatus = video?.status ?? wsStatus.status;
   const isComplete = currentStatus === "complete";
 
+  const inputCls = "w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 border transition-colors";
+  const inputStyle = { backgroundColor: "var(--bg-subtle)", borderColor: "var(--border)", color: "var(--text)" };
+
   return (
-    <div className="h-[calc(100vh-53px)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100vh-53px)] flex flex-col overflow-hidden" style={{ backgroundColor: "var(--bg)" }}>
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Video player */}
         <div className="flex-1 flex flex-col p-4 gap-3 min-w-0">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span className="font-mono text-slate-400">{videoId.slice(0, 8)}...</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs ${
-                isComplete
-                  ? "bg-emerald-900/50 text-emerald-400"
-                  : currentStatus === "failed"
-                  ? "bg-red-900/50 text-red-400"
-                  : "bg-slate-700 text-slate-400"
-              }`}
-            >
+          <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-3)" }}>
+            <span className="font-mono" style={{ color: "var(--text-2)" }}>{videoId.slice(0, 8)}...</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                isComplete ? "bg-emerald-500/15 text-emerald-500"
+                : currentStatus === "failed" ? "bg-red-500/15 text-red-400"
+                : "text-teal-400"}`}
+              style={!isComplete && currentStatus !== "failed" ? { backgroundColor: "var(--bg-subtle)" } : {}}>
               {currentStatus}
             </span>
-            {video?.duration && (
-              <span className="text-slate-600">· {formatTime(video.duration)}</span>
-            )}
+            {video?.duration && <span>· {formatTime(video.duration)}</span>}
             {video?.processing_time_sec && (
-              <span className="text-slate-600">
-                · processed in {video.processing_time_sec}s
-                {video.realtime_ratio && (
-                  <span className="text-teal-600"> ({video.realtime_ratio}x real-time)</span>
-                )}
+              <span>· {video.processing_time_sec}s
+                {video.realtime_ratio && <span className="text-teal-500"> ({video.realtime_ratio}x)</span>}
               </span>
             )}
           </div>
@@ -155,81 +149,58 @@ function VideoPageInner({ params }: PageProps) {
           {video?.video_url ? (
             <VideoPlayer url={video.video_url} playerRef={playerRef} />
           ) : isComplete ? (
-            <div className="aspect-video bg-slate-900 rounded-lg border border-slate-800 flex flex-col items-center justify-center gap-3">
-              <div className="text-slate-500 text-sm">Video preview unavailable</div>
-              <div className="text-slate-600 text-xs text-center max-w-xs leading-relaxed">
+            <div className="aspect-video rounded-xl border flex flex-col items-center justify-center gap-3"
+              style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}>
+              <div className="text-sm" style={{ color: "var(--text-2)" }}>Video preview unavailable</div>
+              <div className="text-xs text-center max-w-xs leading-relaxed" style={{ color: "var(--text-3)" }}>
                 S3-imported videos require signed credentials for playback.
-                All segmentation results, break cards, and exports are fully functional.
+                All segmentation results and exports are fully functional.
               </div>
             </div>
           ) : (
-            <div className="aspect-video bg-slate-800 rounded-lg flex items-center justify-center">
-              <div className="text-slate-600 text-sm">Processing...</div>
+            <div className="aspect-video rounded-xl border flex items-center justify-center"
+              style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}>
+              <div className="text-sm" style={{ color: "var(--text-3)" }}>Processing...</div>
             </div>
           )}
 
-          {!isComplete && (
-            <ProgressBar
-              status={wsStatus.status}
-              progress={wsStatus.progress}
-            />
-          )}
+          {!isComplete && <ProgressBar status={wsStatus.status} progress={wsStatus.progress} />}
         </div>
 
         {/* Right: Editor panel */}
-        <div className="w-80 flex flex-col border-l border-slate-800 overflow-hidden">
+        <div className="w-80 flex flex-col border-l overflow-hidden" style={{ borderColor: "var(--border)" }}>
           {/* Controls */}
-          <div className="p-4 border-b border-slate-800 space-y-3 flex-shrink-0">
-            {/* Mode selector */}
+          <div className="p-4 border-b space-y-3 flex-shrink-0" style={{ borderColor: "var(--border)" }}>
             <div className="space-y-1">
-              <label className="text-xs text-slate-500">Mode</label>
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-teal-500"
-              >
+              <label className="text-xs" style={{ color: "var(--text-3)" }}>Mode</label>
+              <select value={mode} onChange={(e) => setMode(e.target.value)}
+                className={inputCls} style={inputStyle}>
                 {MODES.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
             </div>
 
-            {/* K and min gap */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">K breaks</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={k}
+                <label className="text-xs" style={{ color: "var(--text-3)" }}>K breaks</label>
+                <input type="number" min={1} max={20} value={k}
                   onChange={(e) => setK(Number(e.target.value))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-teal-500"
-                />
+                  className={inputCls} style={inputStyle} />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">Min gap (s)</label>
-                <input
-                  type="number"
-                  min={30}
-                  max={3600}
-                  step={30}
-                  value={minGapSec}
+                <label className="text-xs" style={{ color: "var(--text-3)" }}>Min gap (s)</label>
+                <input type="number" min={30} max={3600} step={30} value={minGapSec}
                   onChange={(e) => setMinGapSec(Number(e.target.value))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-teal-500"
-                />
+                  className={inputCls} style={inputStyle} />
               </div>
             </div>
 
-            <button
-              onClick={handleReanalyze}
-              disabled={!isComplete || reanalyzing}
+            <button onClick={handleReanalyze} disabled={!isComplete || reanalyzing}
               className={`w-full py-2 rounded text-sm font-medium transition-all ${
-                isComplete && !reanalyzing
-                  ? "bg-teal-500 hover:bg-teal-600 text-white"
-                  : "bg-slate-700 text-slate-500 cursor-not-allowed"
+                isComplete && !reanalyzing ? "bg-teal-500 hover:bg-teal-600 text-white" : "cursor-not-allowed"
               }`}
-            >
+              style={!isComplete || reanalyzing ? { backgroundColor: "var(--bg-subtle)", color: "var(--text-3)" } : {}}>
               {reanalyzing ? "Re-analyzing..." : "Re-Analyze →"}
             </button>
           </div>
@@ -239,36 +210,29 @@ function VideoPageInner({ params }: PageProps) {
             {isComplete ? (
               Object.keys(breaks).length > 0 ? (
                 <>
-                  <div className="text-xs text-slate-500 px-1">
+                  <div className="text-xs px-1" style={{ color: "var(--text-3)" }}>
                     {Object.values(breaks).filter((b) => b.status !== "rejected").length} breaks
                     {" · "}
                     {Object.values(breaks).filter((b) => b.status === "accepted").length} accepted
                   </div>
                   {Object.keys(breaks).map((id) => (
-                    <BreakCard
-                      key={id}
-                      breakId={id}
-                      videoId={videoId}
-                      playerRef={playerRef}
-                    />
+                    <BreakCard key={id} breakId={id} videoId={videoId} playerRef={playerRef} />
                   ))}
                 </>
               ) : (
-                <div className="text-slate-600 text-xs text-center py-8">
+                <div className="text-xs text-center py-8" style={{ color: "var(--text-3)" }}>
                   No breaks found. Try lowering K or adjusting the threshold.
                 </div>
               )
             ) : (
-              <div className="text-slate-600 text-xs text-center py-8">
-                Processing...
-              </div>
+              <div className="text-xs text-center py-8" style={{ color: "var(--text-3)" }}>Processing...</div>
             )}
           </div>
 
           {/* Export */}
           {isComplete && (
-            <div className="p-3 border-t border-slate-800 flex flex-col gap-2">
-              <div className="text-xs text-slate-500">Export</div>
+            <div className="p-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
+              <div className="text-xs" style={{ color: "var(--text-3)" }}>Export</div>
               <ExportButtons videoId={videoId} />
             </div>
           )}
@@ -277,8 +241,8 @@ function VideoPageInner({ params }: PageProps) {
 
       {/* Bottom: Signal timeline */}
       {isComplete && video?.signals && (
-        <div className="border-t border-slate-800 p-3 bg-slate-900/50">
-          <div className="text-xs text-slate-500 mb-2 flex items-center gap-4">
+        <div className="border-t p-3" style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}>
+          <div className="text-xs mb-2 flex items-center gap-4" style={{ color: "var(--text-3)" }}>
             <span className="flex items-center gap-1">
               <span className="w-3 h-0.5 bg-teal-500 inline-block"></span>
               SegmentIQ
