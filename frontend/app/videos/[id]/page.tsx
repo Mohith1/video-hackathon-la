@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, use } from "react";
+import { useEffect, useRef, useState, Component, ReactNode } from "react";
 import useSWR from "swr";
 import { getVideo, optimizeVideo, createWebSocket } from "@/lib/api";
 import { useEditorStore } from "@/store/editorStore";
@@ -10,6 +10,23 @@ import ProgressBar from "@/components/ProgressBar";
 import ExportButtons from "@/components/ExportButtons";
 import { formatTime } from "@/lib/utils";
 
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+  render() {
+    if (this.state.error) return (
+      <div className="h-screen flex items-center justify-center text-center p-8">
+        <div>
+          <div className="text-red-400 text-sm mb-2">Page error</div>
+          <div className="text-slate-500 text-xs font-mono">{this.state.error}</div>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-700 text-slate-300 rounded text-sm hover:bg-slate-600">Reload</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const MODES = [
   { value: "ad_break", label: "Ad-Break" },
   { value: "news", label: "News" },
@@ -18,11 +35,11 @@ const MODES = [
 
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default function VideoPage({ params }: PageProps) {
-  const { id: videoId } = use(params);
+function VideoPageInner({ params }: PageProps) {
+  const { id: videoId } = params;
   const playerRef = useRef<any>(null);
   const [wsStatus, setWsStatus] = useState<{ status: string; progress: number }>({
     status: "pending",
@@ -39,20 +56,27 @@ export default function VideoPage({ params }: PageProps) {
   const { setVideoData, breaks, mode, setMode, k, setK, minGapSec, setMinGapSec } =
     useEditorStore();
 
-  // WebSocket progress
+  // WebSocket progress (falls back to polling via SWR if WS fails)
   useEffect(() => {
     if (!videoId) return;
-    const ws = createWebSocket(videoId);
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      setWsStatus({ status: msg.status, progress: msg.progress ?? 0 });
-      if (msg.status === "complete" || msg.status === "failed") {
-        mutate();
-        ws.close();
-      }
-    };
-    ws.onerror = () => ws.close();
-    return () => ws.close();
+    let ws: WebSocket | null = null;
+    try {
+      ws = createWebSocket(videoId);
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          setWsStatus({ status: msg.status, progress: msg.progress ?? 0 });
+          if (msg.status === "complete" || msg.status === "failed") {
+            mutate();
+            ws?.close();
+          }
+        } catch {}
+      };
+      ws.onerror = () => { try { ws?.close(); } catch {} };
+    } catch (e) {
+      // WebSocket not available — SWR polling handles status updates
+    }
+    return () => { try { ws?.close(); } catch {} };
   }, [videoId, mutate]);
 
   // Sync store when video data loads
@@ -276,5 +300,13 @@ export default function VideoPage({ params }: PageProps) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VideoPage({ params }: PageProps) {
+  return (
+    <ErrorBoundary>
+      <VideoPageInner params={params} />
+    </ErrorBoundary>
   );
 }
