@@ -131,8 +131,21 @@ async def upload_video(
         # or local://... when running without S3 credentials (local dev)
         s3_uri = upload_file_to_s3(tmp_path, s3_key)
         logger.info(f"Video stored at: {s3_uri}")
+    except Exception as upload_err:
+        logger.warning(f"S3 upload failed ({upload_err}), falling back to local storage")
+        try:
+            import shutil
+            local_dir = os.path.join(os.path.dirname(__file__), "..", "..", "local_uploads", os.path.dirname(s3_key))
+            os.makedirs(local_dir, exist_ok=True)
+            local_dest = os.path.join(os.path.dirname(__file__), "..", "..", "local_uploads", s3_key)
+            shutil.copy2(tmp_path, local_dest)
+            s3_uri = f"local://{s3_key}"
+        except Exception as e2:
+            logger.error(f"Local fallback also failed: {e2}")
+            s3_uri = f"local://{s3_key}"
     finally:
-        os.unlink(tmp_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
     create_video_record(video_id, mode, s3_uri, filename)
     background_tasks.add_task(_run_pipeline, video_id, s3_uri, mode)
